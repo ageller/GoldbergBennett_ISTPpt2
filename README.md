@@ -5,10 +5,15 @@ NLP + GAI analysis of Bennett Goldberg's survey data, using [latent-scope](https
 ## Relevant links
 
 https://enjalot.substack.com/p/introducing-latent-scope
+
 https://github.com/enjalot/latent-scope
+
 https://pypi.org/project/latentscope/
+
 https://umap-learn.readthedocs.io/en/latest/index.html
+
 https://hdbscan.readthedocs.io/en/latest/index.html
+
 https://github.com/jina-ai/jina
 
 ## Installation
