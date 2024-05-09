@@ -1,0 +1,30 @@
+# data files #
+###################
+data/
+*.csv
+
+# generated images #
+###################
+*.png
+
+# generated html files #
+###################
+*.html
+
+# python #
+###################
+*ipynb_checkpoints*
+__pycache__
+*.pyc
+
+# vim files #
+###################
+*.swp
+
+# misc #
+###################
+*.sh
+
+# latent-scope #
+###################
+latent-scope_data/
