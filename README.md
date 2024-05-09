@@ -23,7 +23,7 @@ pip install latentscope
 
 ## Updates to the latentscope code
 
-I will include a .tgz file with the updated code.  Below is a description of the updates I made.
+I will include a `latentscope_updated_code.tgz` file with the code from the latentscope `scripts` and `models` directories on my computer (some of which I've edited).  Below is a description of the updates I made.
 
 - Error when trying to label the clusters using any transformer, 'pipeline' not defined.  Looks like the developer forgot to import it... I edded `latentscope/models/providers/transformers.py` to add a line 56 : `from transformers import pipeline`, dito for `torch` .
 - updated the prompt in `scripts/label_clusters.py` to choose the `label_length` as an input and allow the LLM more tokens for the label.
