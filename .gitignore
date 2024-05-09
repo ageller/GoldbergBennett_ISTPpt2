@@ -28,3 +28,4 @@ __pycache__
 # latent-scope #
 ###################
 latent-scope_data/
+.env
