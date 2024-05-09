@@ -5,7 +5,10 @@ data/
 
 # generated images #
 ###################
+plots/
 *.png
+*.pdf
+
 
 # generated html files #
 ###################
