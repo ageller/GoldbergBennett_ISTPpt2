@@ -172,7 +172,7 @@ class latentscope_helper(object):
         
 
 
-    def create_bar_chart(self):
+    def create_bar_chart(self, filename = None):
         # get the labels
         labels = pd.read_parquet(os.path.join(ls.get_data_dir(), self.dataset_id, "clusters", self.scope_labels_id + ".parquet"))
 
@@ -201,6 +201,9 @@ class latentscope_helper(object):
         ax.invert_yaxis()  # labels read top-to-bottom
         ax.set_xlabel('Fraction of responses including the given theme')
         ax.set_title('Themes from survey responses')
+
+        if (filename is not None):
+            f.savefig(filename, bbox_inches = 'tight')
 
         return f, ax
     
