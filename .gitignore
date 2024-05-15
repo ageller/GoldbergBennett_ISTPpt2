@@ -10,9 +10,10 @@ plots/
 *.pdf
 
 
-# generated html files #
+# generated data files #
 ###################
-*.html
+tables/
+*.xlsx
 
 # python #
 ###################
