@@ -5,6 +5,7 @@ import re
 import pandas as pd
 import numpy as np
 from sklearn import metrics
+import matplotlib
 import matplotlib.pyplot as plt
 import json
 
@@ -22,10 +23,12 @@ def conditional_suppress_output(suppress):
         with open(os.devnull, 'w') as devnull:
             old_stdout = sys.stdout
             old_stderr = sys.stderr
+            mplbackend = matplotlib.rcParams['backend']
             
             try:
                 sys.stdout = devnull
                 sys.stderr = devnull
+                matplotlib.use('AGG')
 
                 if 'IPython' in sys.modules:
                     with capture_output() as captured:
@@ -37,6 +40,7 @@ def conditional_suppress_output(suppress):
             finally:
                 sys.stdout = old_stdout
                 sys.stderr = old_stderr
+                matplotlib.use(mplbackend)
     else:
         yield
 class latentscope_helper(object):
@@ -163,13 +167,20 @@ class latentscope_helper(object):
                 self.umap_number = get_num('umaps', 'umap')
                 self.cluster_number = get_num('clusters', 'cluster')
                 self.label_number = get_num('clusters', 'cluster-' + str(min(int(self.cluster_number) - 1,1)).zfill(3) + '-labels')
-                self.scope_number = get_num('scopes', 'scopes')
-                if (not self.suppress_helper_output):
-                    print('new embedding number = ', self.embedding_number)
-                    print('new umap number = ', self.umap_number)
-                    print('new cluster number = ', self.cluster_number)
-                    print('new label number = ', self.label_number)
-                    print('new scope number = ', self.scope_number)
+                self.scope_number = get_num('scopes', 'scope')
+            else:
+                with open(os.path.join(self.latent_scope_dir, self.dataset_id, "scopes", "scope-" + self.scope_number + ".json")) as jdata:
+                    scopes_info = json.load(jdata)
+                    self.embedding_number = scopes_info['embedding_id'].replace('embedding-','')
+                    self.umap_number = scopes_info['umap_id'].replace('umap-','')
+                    self.cluster_number = scopes_info['cluster_id'].replace('cluster-','')
+                    self.label_number = scopes_info['cluster_labels_id'].replace('cluster-' + self.cluster_number + '-labels-','')
+            if (not self.suppress_helper_output):
+                print('new embedding number = ', self.embedding_number)
+                print('new umap number = ', self.umap_number)
+                print('new cluster number = ', self.cluster_number)
+                print('new label number = ', self.label_number)
+                print('new scope number = ', self.scope_number)
 
 
     def initialize_latentscope_filenames(self):
@@ -177,7 +188,7 @@ class latentscope_helper(object):
         self.cluster_umap_id = "umap-" + self.umap_number
         self.label_cluster_id = "cluster-" + self.cluster_number
         self.scope_labels_id = self.label_cluster_id + "-labels-" + self.label_number
-        self.scope_label = "Scope" + self.scope_number
+        self.scope_label = "scope-" + self.scope_number
 
     def initialize_latentscope(self):
 
@@ -204,7 +215,7 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nCALCULATING EMBEDDINGS ...\n')
             with conditional_suppress_output(self.suppress_latentscope_output):
-                ls.embed(self.dataset_id, self.text_column, self.embedding_model_id, "", None, self.embedding_n_dimensions)
+                ls.embed(self.dataset_id, self.text_column, self.embedding_model_id, "", None, self.embedding_n_dimensions, next_embedding_number = int(self.embedding_number))
 
         
         # run UMAP dimension reduction
@@ -214,7 +225,7 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nRUNNING UMAP ...\n')
             with conditional_suppress_output(self.suppress_latentscope_output):
-                ls.umap(self.dataset_id, self.umap_embedding_id, self.umap_n_neighbors, self.umap_min_dist, n_components = self.umap_n_components)
+                ls.umap(self.dataset_id, self.umap_embedding_id, self.umap_n_neighbors, self.umap_min_dist, n_components = self.umap_n_components, next_umap_number = int(self.umap_number))
 
         # run HDBSCAN to cluster (on UMAP vectors)
         # dataset_id, umap_id, samples, min_samples
@@ -223,7 +234,7 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nIDENTIFYING CLUSTERS ...\n')
             with conditional_suppress_output(self.suppress_latentscope_output):
-                ls.cluster(self.dataset_id, self.cluster_umap_id, self.cluster_samples, self.cluster_min_samples, self.cluster_selection_epsilon)
+                ls.cluster(self.dataset_id, self.cluster_umap_id, self.cluster_samples, self.cluster_min_samples, self.cluster_selection_epsilon, next_cluster_number = int(self.cluster_number))
 
         # run the LLM labeler
         # dataset_id, text_column, cluster_id, model_id, unused, rerun, instructions_before, instructions_after, label_length
@@ -232,7 +243,7 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nLABELLING CLUSTERS ...\n')
             with conditional_suppress_output(self.suppress_latentscope_output):
-                ls.label(self.dataset_id, self.text_column, self.label_cluster_id, self.chat_model_id, "", None, self.chat_model_instructions_before, self.chat_model_instructions_after,  self.label_length)
+                ls.label(self.dataset_id, self.text_column, self.label_cluster_id, self.chat_model_id, "", None, self.chat_model_instructions_before, self.chat_model_instructions_after,  self.label_length, next_label_number = int(self.label_number))
 
         # save the scope
         # dataset_id, embedding_id, umap_id, cluster_id, labels_id, label, description
@@ -240,7 +251,7 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nSAVING SCOPE ...\n')
             with conditional_suppress_output(self.suppress_latentscope_output):
-                ls.scope(self.dataset_id, self.umap_embedding_id, self.cluster_umap_id, self.label_cluster_id, self.scope_labels_id, self.scope_label, self.scope_description)
+                ls.scope(self.dataset_id, self.umap_embedding_id, self.cluster_umap_id, self.label_cluster_id, self.scope_labels_id, self.scope_label, self.scope_description, scope_id = self.scope_label)
 
 
     def print_labels(self):
@@ -358,5 +369,5 @@ class latentscope_helper(object):
             # calculate the Davies-Bouldin Index
             dbi = metrics.davies_bouldin_score(X, labels)
 
-        return {'inertia:':inertia, 'silhouette_coefficient':sc, 'calinski_harabasz_index':chi, 'davies_bouldin_index':dbi, 
+        return {'inertia':inertia, 'silhouette_coefficient':sc, 'calinski_harabasz_index':chi, 'davies_bouldin_index':dbi, 
                 'embedding_info':embedding_info, 'cluster_info':cluster_info}

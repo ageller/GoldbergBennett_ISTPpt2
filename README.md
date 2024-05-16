@@ -16,7 +16,7 @@ NLP + GAI analysis of Bennett Goldberg's survey data, using [latent-scope](https
 (latentscope won't install in python 3.12)
 
 ```
-conda create --name latentscope-wsl python=3.11 openpyxl
+conda create --name latentscope-wsl python=3.11 openpyxl seaborn
 conda activate latentscope-wsl
 pip install latentscope
 ```
@@ -32,5 +32,6 @@ I will include a `latentscope_updated_code.tgz` file with the code from the late
 - added a more careful check for token length when defining the list of items to send to the LLM in `scripts/label_clusters.py` so that it doesn't cut an answer off mid-way.  
 - trying to improve the cleanup of the LLM-produced labels in `scripts/label_clusters.py`.
 - added an input for `n_components` in the `scripts/umapper.py` script, which required a few edits to `scripts/umapper.py` and also `scripts/cluster.py`
+- in all script codes, I added an input to define the file number (so that I don't have to create so many files every time I rerun the code!)
 
 
