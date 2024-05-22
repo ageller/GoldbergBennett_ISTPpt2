@@ -53,9 +53,15 @@ class latentscope_helper(object):
         dataset_id = None, # data set name, for the sub-directory name within latent_scope_dir for this project
         data = None, # pandas DataFrame that contains the data to analyze
         text_column = None, # response column name from data_file
-        scope_number = 'new', # number that will be appended to all latentscope files, if "new" it determines the correct next number in the sequence
+        embedding_number = None, # set the file number of embedding (if None, the next number in sequence is used)
+        umap_number = None, # set the file number of umap (if None, the next number in sequence is used)
+        cluster_number = None, # set the file number of cluster (if None, the next number in sequence is used)
+        label_number = None, # set the file number of label (if None, the next number in sequence is used)
+        scope_number = None, # set the file number of scope (if None, the next number in sequence is used)
         remove_old_files = False, # set this to True if you want to clean the latent-scope directories and start fresh
-        imax = 50, # maximum number of scopes that it should search through
+        quick_clean = False, # set this to True if you want to remove every file in the directories, regardless of imin and imax
+        imin = 0, # minimum number of for files to search through (to remove)
+        imax = 50, # maximum number of for files to search through (to remove)
         run_embedding = True, # whether to run the embedding step (and potentially remove previous files)
         run_umap = True, # whether to run the umap step (and potentially remove previous files)
         run_cluster = True, # whether to run the clustering step (and potentially remove previous files)
@@ -86,8 +92,14 @@ class latentscope_helper(object):
         self.text_column = text_column
 
         # parameters defined by defaults, but that the user could set on input
+        self.embedding_number = embedding_number 
+        self.umap_number = umap_number 
+        self.cluster_number = cluster_number 
+        self.label_number = label_number 
         self.scope_number = scope_number 
         self.remove_old_files = remove_old_files
+        self.quick_clean = quick_clean
+        self.imin = imin
         self.imax = imax
         self.run_embedding = run_embedding
         self.run_umap = run_umap
@@ -115,10 +127,6 @@ class latentscope_helper(object):
             self.suppress_helper_output = True
 
         # internal file numbering system that will be set in initialize_latentscope
-        self.embedding_number = None
-        self.umap_number = None
-        self.cluster_number = None
-        self.label_number = None
         self.umap_embedding_id = None
         self.cluster_umap_id = None
         self.label_cluster_id = None
@@ -131,15 +139,15 @@ class latentscope_helper(object):
         def get_num(subdir, fileprefix):
             nums = []
             fls = []
-            n_out = '001'
-            for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, subdir, fileprefix + '-[0-9][0-9][0-9].json')):
+            n_out = '00001'
+            for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, subdir, fileprefix + '-[0-9][0-9][0-9][0-9][0-9].json')):
                 fls.append(f)
                 f_split = os.path.split(f)[-1].replace(fileprefix, '')
                 x = re.split('-|\.', f_split)
                 nums.append(int(x[1]))
             if (len(nums) > 0):
                 n = max(nums)
-                n_out = str(n + 1).zfill(3)
+                n_out = str(n + 1).zfill(5)
             
             return n_out
 
@@ -147,7 +155,7 @@ class latentscope_helper(object):
         if (self.remove_old_files):
             if (not self.suppress_helper_output):
                 print('\nREMOVING OLD FILES ...\n')
-            self.scope_number = self.embedding_number = self.umap_number = self.cluster_number = self.label_number = '001'
+            self.scope_number = self.embedding_number = self.umap_number = self.cluster_number = self.label_number = '00001'
             dir_to_remove = ['scopes']
             if (self.run_embedding):
                 dir_to_remove.append('embeddings')
@@ -155,26 +163,39 @@ class latentscope_helper(object):
                 dir_to_remove.append('umaps')
             if (self.run_cluster):
                 dir_to_remove.append('clusters')
-            for i in range(self.imax):
-                for d in dir_to_remove:
-                    for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, d, '*'+str(i).zfill(3)+'*')):
+            for d in dir_to_remove:
+                if (self.quick_clean):
+                    # remove all the files regardless of number
+                    for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, d, '*')):
                         if (not self.suppress_helper_output):
                             print("removing : ",f)
                         os.remove(f)
+                else:
+                    # check by number
+                    for i in range(self.imin, self.imax, 1):
+                        for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, d, '*'+str(i).zfill(5)+'*')):
+                            if (not self.suppress_helper_output):
+                                print("removing : ",f)
+                            os.remove(f)
         else:
-            if (self.scope_number ==  'new'):
-                self.embedding_number = get_num('embeddings', 'embedding')
+
+            if (self.embedding_number is None):
+               self.embedding_number = get_num('embeddings', 'embedding')
+            if (self.umap_number is None):
                 self.umap_number = get_num('umaps', 'umap')
+            if (self.cluster_number is None):
                 self.cluster_number = get_num('clusters', 'cluster')
-                self.label_number = get_num('clusters', 'cluster-' + str(min(int(self.cluster_number) - 1,1)).zfill(3) + '-labels')
+            if (self.label_number is None):
+                self.label_number = get_num('clusters', 'cluster-' + str(min(int(self.cluster_number) - 1,1)).zfill(5) + '-labels')
+            if (self.scope_number is None):
                 self.scope_number = get_num('scopes', 'scope')
-            else:
-                with open(os.path.join(self.latent_scope_dir, self.dataset_id, "scopes", "scope-" + self.scope_number + ".json")) as jdata:
-                    scopes_info = json.load(jdata)
-                    self.embedding_number = scopes_info['embedding_id'].replace('embedding-','')
-                    self.umap_number = scopes_info['umap_id'].replace('umap-','')
-                    self.cluster_number = scopes_info['cluster_id'].replace('cluster-','')
-                    self.label_number = scopes_info['cluster_labels_id'].replace('cluster-' + self.cluster_number + '-labels-','')
+                # old code to get the next number from the scope file
+                # with open(os.path.join(self.latent_scope_dir, self.dataset_id, "scopes", "scope-" + self.scope_number + ".json")) as jdata:
+                #     scopes_info = json.load(jdata)
+                #     self.embedding_number = scopes_info['embedding_id'].replace('embedding-','')
+                #     self.umap_number = scopes_info['umap_id'].replace('umap-','')
+                #     self.cluster_number = scopes_info['cluster_id'].replace('cluster-','')
+                #     self.label_number = scopes_info['cluster_labels_id'].replace('cluster-' + self.cluster_number + '-labels-','')
             if (not self.suppress_helper_output):
                 print('new embedding number = ', self.embedding_number)
                 print('new umap number = ', self.umap_number)
@@ -318,7 +339,7 @@ class latentscope_helper(object):
                 # save to sheet in Excel
                 cl.to_excel(writer, sheet_name = f'cluster{index + 1}', index=False)
 
-    def calculate_metrics(self, embedding_number = None, cluster_number = None, calc_inertia = True, calc_silhouette_coefficient = True, calc_calinski_harabasz_index = True, calc_davies_bouldin_index = True):
+    def calculate_metrics(self, embedding_number = None, umap_number = None, cluster_number = None, calc_inertia = True, calc_silhouette_coefficient = True, calc_calinski_harabasz_index = True, calc_davies_bouldin_index = True):
         # returns inertia, Silhouette Coefficient, Calinski-Harabasz Index, Davies-Bouldin Index
         # - a lower inertia value is generally better
         # - a higher Silhouette Coefficient score relates to a model with better defined clusters. 
@@ -328,19 +349,29 @@ class latentscope_helper(object):
         if (embedding_number is None):
             embedding_number = self.embedding_number
 
+        if (umap_number is None):
+            umap_number = self.umap_number
+
         if (cluster_number is None):
             cluster_number = self.cluster_number
 
-        # get the embeddings
+        # get the embeddings info
         embedding_file_root = os.path.join(self.latent_scope_dir, self.dataset_id, "umaps", "umap-" + embedding_number)
         with open(embedding_file_root + ".json") as jdata:
             embedding_info = json.load(jdata)
         X = pd.read_parquet(embedding_file_root + ".parquet").to_numpy()
 
-        # get the cluster labels
+
+        # get the umap info
+        umap_file_root = os.path.join(self.latent_scope_dir, self.dataset_id, "umaps", "umap-" + umap_number)
+        with open(umap_file_root + ".json") as jdata:
+            umap_info = json.load(jdata)
+
+        # get the cluster info
         cluster_file_root = os.path.join(self.latent_scope_dir, self.dataset_id, "clusters", "cluster-" + cluster_number)
         with open(cluster_file_root + ".json") as jdata:
             cluster_info = json.load(jdata)
+        # load the labels
         labels = pd.read_parquet(cluster_file_root+ ".parquet")['cluster'].to_numpy(dtype='int32')
         
         inertia = sc = chi = dbi = None
@@ -370,4 +401,4 @@ class latentscope_helper(object):
             dbi = metrics.davies_bouldin_score(X, labels)
 
         return {'inertia':inertia, 'silhouette_coefficient':sc, 'calinski_harabasz_index':chi, 'davies_bouldin_index':dbi, 
-                'embedding_info':embedding_info, 'cluster_info':cluster_info}
+                'embedding_info':embedding_info, 'umap_info':umap_info, 'cluster_info':cluster_info}
