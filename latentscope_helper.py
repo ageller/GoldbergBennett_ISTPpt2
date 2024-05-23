@@ -133,7 +133,7 @@ class latentscope_helper(object):
         self.scope_label = None
         self.scope_labels_id = None
 
-    def initialize_files_and_numbering(self):
+    def initialize_files_and_numbering(self, dirs_to_remove = None):
         # clean the latenscope directory and set the scope number
 
         def get_num(subdir, fileprefix):
@@ -156,14 +156,15 @@ class latentscope_helper(object):
             if (not self.suppress_helper_output):
                 print('\nREMOVING OLD FILES ...\n')
             self.scope_number = self.embedding_number = self.umap_number = self.cluster_number = self.label_number = '00001'
-            dir_to_remove = ['scopes']
-            if (self.run_embedding):
-                dir_to_remove.append('embeddings')
-            if (self.run_umap):
-                dir_to_remove.append('umaps')
-            if (self.run_cluster):
-                dir_to_remove.append('clusters')
-            for d in dir_to_remove:
+            if (dirs_to_remove is None):
+                dirs_to_remove = ['scopes']
+                if (self.run_embedding):
+                    dirs_to_remove.append('embeddings')
+                if (self.run_umap):
+                    dirs_to_remove.append('umaps')
+                if (self.run_cluster):
+                    dirs_to_remove.append('clusters')
+            for d in dirs_to_remove:
                 if (self.quick_clean):
                     # remove all the files regardless of number
                     for f in glob.glob(os.path.join(self.latent_scope_dir, self.dataset_id, d, '*')):
